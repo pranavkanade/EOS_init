@@ -1,124 +1,125 @@
-#include "Players.hpp"
+#include <eosiolib/eosio.hpp>
+#include <eosiolib/print.hpp>
+#include <string>
 
-namespace Oasis {
-    using namespace eosio;
-    using namespace std;
+using namespace eosio;
+using namespace std;
 
-    class Players: public contract {
-        using contract::contract;
+class [[eosio::contract]] players: public contract {
+    using contract::contract;
 
-        public:
-            Players(account_name self):contract(self) {
-                // this is empty contstructor
-            }
-            //@abi action
-            void add(
-                const account_name account,
-                string& username,
-                uint64_t level
-            ) {
-                /**
-                 * We need to confirm that this will be invoked only by
-                 * someone who has the account
-                 **/
-                require_auth(account);
+    public:
+        [[eosio::action]]
+        void hi( name user ) {
+            require_auth(user);
+            print("hi, ", user);
+        }
 
-                /**
-                 * We access the "player" table by creating an object
-                 * of type "playerIndex". As params we pass code &
-                 * scope - _self from the parent contract
-                 **/
-                playerIndex players(_self, _self);
+        [[eosio::action]]
+        void add(
+            const name account,
+            string& username
+        ) {
+            /**
+             * We need to confirm that this will be invoked only by
+             * someone who has the account
+             **/
+            require_auth(account);
 
-                // verify the account does not exists yet.
-                auto iterator = players.find(account);
-                eosio_assert(
-                    iterator == players.end(),
-                    "Address for the account already exists"
-                );
+            /**
+             * We access the "player" table by creating an object
+             * of type "playerIndex". As params we pass code &
+             * scope - _self from the parent contract
+             **/
+            playerIndex players_db(_self, _self.value);
 
-                /**
-                 * we add the new player in the table
-                 * The first argument is the plyer of the storage which will store the data
-                 **/
-                Players.emplace(account, [&](auto& player) {
-                    player.account_name = account;
-                    player.username = username;
-                    player.level = 1;
-                    player.health_points = 1000;
-                    player.energy_points = 1000;
-                });
-            }
+            // verify the account does not exists yet.
+            auto iterator = players_db.find(account.value);
+            eosio_assert(
+                iterator == players_db.end(),
+                "Address for the account already exists"
+            );
 
-            //@abi action
-            void update(
-                const account_name account,
-                uint64_t level,
-                int64_t healthPoints,
-                int64_t energyPoints
-            ) {
-                require_auth(account);
+            /**
+             * we add the new player in the table
+             * The first argument is the plyer of the storage which will store the data
+             **/
+            players_db.emplace(account, [&](auto& player) {
+                player.account_name = account.value;
+                player.username = username;
+                player.level = 1;
+                player.health_points = 1000;
+                player.energy_points = 1000;
+            });
+        }
 
-                playerIndex players(_self, _self);
+        [[eosio::action]]
+        void update(
+            const name account,
+            uint64_t level,
+            int64_t healthPoints,
+            int64_t energyPoints
+        ) {
+            require_auth(account);
 
-                auto iterator = players.find(account);
-                eosio_assert(
-                    iterator != players.end(),
-                    "address for the account is not found"
-                );
+            playerIndex players_db(_self, _self.value);
 
-                players.modify(iterator, account, [&](auto& player) {
-                    player.level = level;
+            auto iterator = players_db.find(account.value);
+            eosio_assert(
+                iterator != players_db.end(),
+                "address for the account is not found"
+            );
 
-                    if ((player.health_points - healthPoints) < 0) {
-                        player.health_points = 0;
-                    } else {
-                        player.health_points -= healthPoints;
-                    }
+            players_db.modify(iterator, account, [&](auto& player) {
+                player.level = level;
 
-                    if ((player.energy_points - energyPoints) < 0) {
-                        player.energy_points = 0;
-                    } else {
-                        player.energy_points -= energyPoints;
-                    }
-                });
-            }
+                if ((player.health_points - healthPoints) < 0) {
+                    player.health_points = 0;
+                } else {
+                    player.health_points -= healthPoints;
+                }
 
-            //@abi action
-            void getplayer(const account_name account) {
-                playerIndex players(_self, _self);
+                if ((player.energy_points - energyPoints) < 0) {
+                    player.energy_points = 0;
+                } else {
+                    player.energy_points -= energyPoints;
+                }
+            });
+        }
 
-                auto iterator = players.find(account);
-                eosio_assert(
-                    iterator != players.end(),
-                    "address for the account is not found"
-                );
+        [[eosio::action]]
+        void getplayer(const name account) {
+            playerIndex players_db(_self, _self.value);
 
-                auto currentPlayer = players.get(account);
-                print(
-                    "Username : ", currentPlayer.username.c_str(),
-                    "Level : ", currentPlayer.level,
-                    "Health: ", currentPlayer.health_points,
-                    "Energy: ", currentPlayer.energy_points
-                );
-            }
+            auto iterator = players_db.find(account.value);
+            eosio_assert(
+                iterator != players_db.end(),
+                "address for the account is not found"
+            );
 
-        private:
-            //@abi table player i64
-            struct player {
-                uint64_t account_name;
-                string username;
-                uint64_t level;
-                uint64_t health_points = 1000;
-                uint64_t energy_points = 1000;
+            auto currentPlayer = players_db.get(account.value);
+            print(
+                "Username : ", currentPlayer.username.c_str(),
+                "Level : ", currentPlayer.level,
+                "Health: ", currentPlayer.health_points,
+                "Energy: ", currentPlayer.energy_points
+            );
+        }
 
-                uint64_t primary_key() const { return account_name; }
+    private:
+        struct [[eosio::table]] player {
+            uint64_t account_name;
+            string username;
+            uint64_t level;
+            uint64_t health_points = 1000;
+            uint64_t energy_points = 1000;
 
-                EOSLIB_SERIALIZE(player, (account_name)(username)(level)(health_points)(energy_points))
-            };
+            uint64_t primary_key() const { return account_name; }
 
-            typedef multi_index<N(player), player> playerIndex;
-    };
+            EOSLIB_SERIALIZE(player, (account_name)(username)(level)(health_points)(energy_points))
+        };
 
-    EOSIO_ABI(Players, (add)(update)(getplayer))
-}
+        typedef multi_index<"player"_n, player> playerIndex;
+};
+
+EOSIO_DISPATCH( players, (add)(update)(getplayer) )
