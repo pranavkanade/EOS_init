@@ -11,7 +11,7 @@
 
 - We've put actions and constructors in *public* scope.
 - Each action represents a single operation inside the smart contract.
-- `//@abi action` is the indication to **eosiocpp** compiler.
+- `[[eosio::action]]` is the indication to **eosiocpp** compiler.
 
 - Each action operates within its own environment know as action context.
 - Context provides :
@@ -22,5 +22,5 @@
 - One can define a table object with primary key. (take a look at Players.cpp)
 - Once the object is ready, we need to typedef our *multi-index* as follows:
 ```cpp
-typedef multi_index<N(table_name), object_template_to_use> multi_index_name;
+typedef multi_index<"table_name"_n, object_template_to_use> multi_index_name;
 ```
